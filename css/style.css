@@ -1,0 +1,90 @@
+/* Dark, practical, no animations -- matches the existing GAS phone pages'
+   aesthetic and the explicit "practicality over polish" instruction this
+   whole feature was built under. */
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #111;
+  color: #eee;
+  margin: 0;
+  padding: 0;
+  padding-bottom: 76px; /* clears the fixed bottom nav */
+}
+
+h1 { font-size: 18px; margin: 14px 12px 10px; }
+h2 { font-size: 14px; margin: 10px 12px 6px; color: #ccc; }
+h3 { font-size: 13px; margin: 16px 12px 6px; color: #999; }
+
+.hint { font-size: 12px; color: #999; margin: 4px 12px; }
+
+.row { display: flex; gap: 8px; align-items: center; margin: 8px 12px; flex-wrap: wrap; }
+
+input[type=text], input[type=number] {
+  font-size: 16px; /* >=16px avoids iOS Safari auto-zoom on focus */
+  padding: 10px; border-radius: 6px; border: 1px solid #333;
+  background: #1c1c1c; color: #eee;
+}
+input[type=text] { flex: 1; min-width: 0; }
+
+button {
+  font-size: 14px; padding: 10px 14px; border-radius: 6px; border: none;
+  background: #335; color: #eee; cursor: pointer;
+}
+button:disabled { opacity: 0.4; }
+button.cancel-btn { background: #533; }
+
+.checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #ccc; margin: 8px 12px; }
+.checkbox-row input { width: 18px; height: 18px; }
+
+.card { background: #1c1c1c; border-radius: 8px; padding: 12px; margin: 12px; }
+
+.tab-section { padding-bottom: 12px; }
+.hidden { display: none !important; }
+
+.panel { margin: 8px 0; padding-bottom: 8px; border-bottom: 1px solid #222; }
+/* .active-panel carries no styling of its own -- it's a semantic marker
+   only (used by the tab JS to track which half is "focused"); actual
+   show/hide always goes through the shared .hidden utility class below,
+   never through this one. */
+
+.scanner-wrap { margin: 8px 12px; border-radius: 8px; overflow: hidden; background: #000; min-height: 40px; }
+.scanner-wrap video { width: 100%; display: block; }
+
+.summary { font-size: 13px; color: #8e8; }
+
+.recent-list, #ponerBatchList, #buscarResults, #contarCountedList, #contarResult {
+  margin: 8px 12px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.recent-list .entry, #ponerBatchList .entry, #buscarResults .entry, #contarCountedList .entry {
+  background: #1a1a1a; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px;
+}
+.recent-list .entry .meta, #buscarResults .entry .meta { color: #999; font-size: 11px; }
+.variance-row { color: #e88; }
+.variance-row.match { color: #8e8; }
+
+.pairing-banner {
+  background: #1c1c1c; color: #ccc; font-size: 12px; text-align: center;
+  padding: 8px; border-bottom: 1px solid #2a2a2a; cursor: pointer;
+}
+.pairing-banner.paired { color: #8e8; }
+.pairing-banner.unpaired { color: #e88; }
+
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; background: #181818; border-top: 1px solid #2a2a2a;
+  padding: 4px 0 max(4px, env(safe-area-inset-bottom));
+}
+.nav-btn {
+  flex: 1; background: none; border: none; color: #888;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 0; font-size: 11px; border-radius: 0;
+}
+.nav-btn svg { width: 22px; height: 22px; }
+.nav-btn.active { color: #4a9; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #2a2a2a; }
