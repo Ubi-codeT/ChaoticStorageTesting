@@ -8,6 +8,17 @@
 </head>
 <body>
 
+  <!-- TEMPORARY debugging panel -- see js/debug.js's own header comment.
+       Remove both this block and that file once scanning is confirmed
+       working. Visible by default (not collapsed) on purpose while we're
+       actively hunting this bug. -->
+  <div style="background:#001a00; border-bottom: 2px solid #4a9; padding: 8px;">
+    <div style="color:#8e8; font-size:11px; font-family:monospace; margin-bottom:4px;">
+      DIAGNÓSTICO (temporal) -- copia/pega o toma captura de esto:
+    </div>
+    <pre id="debugLogPanel" style="background:#000; color:#8e8; font-size:10px; max-height:180px; overflow-y:auto; margin:0; padding:6px; border-radius:4px; white-space:pre-wrap; word-break:break-all;"></pre>
+  </div>
+
   <!-- Pairing status banner -- always visible, tap to re-pair/clear. See
        js/pairing.js. Real validation against phone_sessions doesn't exist
        yet (see that file's own header comment) -- this is client-side
@@ -129,6 +140,10 @@
     </button>
   </nav>
 
+  <!-- TEMPORARY -- loaded first, before anything else, so it can catch
+       and log even the earliest possible failures. See js/debug.js. -->
+  <script src="js/debug.js"></script>
+
   <!-- html5-qrcode -- pinned version, learned the hard way (see the GAS
        PoC's own comment history) not to use @latest. Loaded once here,
        shared by every tab's scanner instance. -->
@@ -139,6 +154,7 @@
     // otherwise fail SILENTLY -- a console-only error, nothing visible on
     // screen, which looks identical to "nothing happens, no camera
     // prompt" from the outside. Surface it loudly instead.
+    DebugLog.log('post-CDN check: typeof Html5Qrcode', typeof window.Html5Qrcode);
     if (typeof Html5Qrcode === 'undefined') {
       document.body.insertAdjacentHTML(
         'afterbegin',
