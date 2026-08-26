@@ -34,13 +34,21 @@ class Scanner {
     opts = opts || {};
     this.elementId = elementId;
     this.cooldownMs = opts.cooldownMs !== undefined ? opts.cooldownMs : 1200;
-    this.formats = opts.formats || [
+    // Guarded: if the CDN script failed to load, Html5QrcodeSupportedFormats
+    // won't exist, and referencing it here would throw at CONSTRUCTION time
+    // -- which runs at page load for every tab (each tab file creates its
+    // Scanner instances immediately), so one CDN failure would silently
+    // break the ENTIRE app (tab switching included), not just camera
+    // features. Deferring the failure to .start() instead -- which already
+    // catches errors and writes them visibly into the scanner element --
+    // means everything else still works even if scanning itself can't.
+    this.formats = opts.formats || (typeof Html5QrcodeSupportedFormats !== 'undefined' ? [
       Html5QrcodeSupportedFormats.CODE_128,
       Html5QrcodeSupportedFormats.EAN_13,
       Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_A,
       Html5QrcodeSupportedFormats.CODE_39,
-    ];
+    ] : []);
     this.html5Qrcode = null;
     this.lastByCode = {};
     this.running = false;
@@ -55,10 +63,10 @@ class Scanner {
     if (!el) throw new Error('Scanner: no element with id ' + this.elementId);
     el.classList.remove('hidden');
 
-    this.html5Qrcode = new Html5Qrcode(this.elementId, { formatsToSupport: this.formats, verbose: false });
     const config = { fps: 10, qrbox: { width: 260, height: 140 } };
 
     try {
+      this.html5Qrcode = new Html5Qrcode(this.elementId, { formatsToSupport: this.formats, verbose: false });
       await this.html5Qrcode.start(
         { facingMode: 'environment' },
         config,
