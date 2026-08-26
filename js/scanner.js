@@ -58,15 +58,24 @@ class Scanner {
    * @param {(code: string, format: string) => void} onScan
    */
   async start(onScan) {
-    if (this.running) return;
+    if (this.running) {
+      DebugLog.log('Scanner.start(' + this.elementId + ') -- already running, no-op');
+      return;
+    }
+    DebugLog.log('Scanner.start(' + this.elementId + ') -- begin');
     const el = document.getElementById(this.elementId);
-    if (!el) throw new Error('Scanner: no element with id ' + this.elementId);
+    if (!el) {
+      DebugLog.log('Scanner.start(' + this.elementId + ') -- ELEMENT NOT FOUND');
+      throw new Error('Scanner: no element with id ' + this.elementId);
+    }
     el.classList.remove('hidden');
 
     const config = { fps: 10, qrbox: { width: 260, height: 140 } };
 
     try {
+      DebugLog.log('Scanner.start(' + this.elementId + ') -- constructing Html5Qrcode');
       this.html5Qrcode = new Html5Qrcode(this.elementId, { formatsToSupport: this.formats, verbose: false });
+      DebugLog.log('Scanner.start(' + this.elementId + ') -- calling html5Qrcode.start() (this is what should trigger the permission prompt)');
       await this.html5Qrcode.start(
         { facingMode: 'environment' },
         config,
@@ -78,6 +87,7 @@ class Scanner {
           }
           this.lastByCode[decodedText] = now;
           const format = (decodedResult && decodedResult.result && decodedResult.result.format && decodedResult.result.format.formatName) || '?';
+          DebugLog.log('Scanner(' + this.elementId + ') -- decoded', { code: decodedText, format: format });
           beep_();
           onScan(decodedText, format);
         },
@@ -87,8 +97,17 @@ class Scanner {
         }
       );
       this.running = true;
+      DebugLog.log('Scanner.start(' + this.elementId + ') -- SUCCESS, camera running');
     } catch (e) {
-      el.textContent = 'No se pudo abrir la cámara: ' + (e && e.message ? e.message : e);
+      // e.name here is the single most diagnostic thing in this whole
+      // file -- NotAllowedError means permission was denied (possibly
+      // silently, if this origin already has "denied" recorded from
+      // testing the earlier broken version -- browsers don't re-prompt
+      // in that case, they just reject immediately, which is
+      // indistinguishable from "nothing happened" without this log).
+      // NotFoundError means no camera device was found at all.
+      DebugLog.logError('Scanner.start(' + this.elementId + ')', e);
+      el.textContent = 'No se pudo abrir la cámara: ' + (e && e.message ? e.message : e) + (e && e.name ? ' [' + e.name + ']' : '');
       throw e;
     }
   }

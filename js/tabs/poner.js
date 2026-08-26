@@ -167,15 +167,20 @@ const PonerTab = (function () {
 
   return {
     show: function () {
+      DebugLog.log('PonerTab.show() called');
       itemPanel.classList.add('active-panel');
       itemPanel.classList.remove('hidden');
       shelfPanel.classList.remove('active-panel');
       shelfPanel.classList.add('hidden');
       resetItemState();
       renderRecent();
-      itemScanner.start(onItemScan);
+      DebugLog.log('PonerTab.show() -- calling itemScanner.start()');
+      itemScanner.start(onItemScan).catch(function (e) {
+        DebugLog.logError('PonerTab.show() -> itemScanner.start()', e);
+      });
     },
     hide: function () {
+      DebugLog.log('PonerTab.hide() called');
       itemScanner.stop();
       shelfScanner.stop();
     },
