@@ -13,11 +13,21 @@
  * "bug out and not reopen the camera").
  */
 
+// BUG FOUND AND FIXED: this used to read window.BuscarTab/window.PonerTab/
+// etc. Each tabs/*.js file exports with `const XTab = (...)();` -- and
+// `const`/`let` at a classic <script>'s top level deliberately never
+// attach to `window` (that's the whole point of `const` over `var`, by
+// ES6 design). The bare identifiers (BuscarTab, PonerTab, ...) ARE shared
+// correctly across <script> tags in the same document though -- which is
+// exactly why Pairing.init() worked fine two lines below this while this
+// object was silently building itself full of undefined -- app.js calls
+// `Pairing.init()` by its bare name, never `window.Pairing`. Same fix
+// applies here: reference the bare names directly.
 const TABS = {
-  buscar: window.BuscarTab,
-  poner: window.PonerTab,
-  foto: window.FotoTab,
-  contar: window.ContarTab,
+  buscar: BuscarTab,
+  poner: PonerTab,
+  foto: FotoTab,
+  contar: ContarTab,
 };
 
 // If any tab module's own IIFE threw an error while loading (e.g. a typo,

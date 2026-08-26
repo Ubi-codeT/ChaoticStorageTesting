@@ -66,6 +66,12 @@ window.addEventListener('unhandledrejection', function (e) {
 // it answers most of "why isn't this working" before we even get to the
 // scanner code. ----
 (function envDump() {
+  // Bump this string every time this file changes and gets redeployed --
+  // the fastest possible check for "am I actually looking at fresh code
+  // or a cached/stale page" the next time something looks wrong. If a
+  // reported log doesn't show the version you just pushed, that's a
+  // caching problem, not a code problem.
+  DebugLog.log('DEBUG BUILD', '2026-08-26-d (TABS bare-identifier fix)');
   DebugLog.log('debug.js loaded');
   DebugLog.log('location', { href: location.href, protocol: location.protocol });
   DebugLog.log('isSecureContext', window.isSecureContext);
