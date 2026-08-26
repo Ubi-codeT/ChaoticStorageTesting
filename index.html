@@ -133,6 +133,22 @@
        PoC's own comment history) not to use @latest. Loaded once here,
        shared by every tab's scanner instance. -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    // If the CDN script above failed to load for ANY reason (slow/blocked
+    // network, the CDN being down, etc.), every tab's Scanner would
+    // otherwise fail SILENTLY -- a console-only error, nothing visible on
+    // screen, which looks identical to "nothing happens, no camera
+    // prompt" from the outside. Surface it loudly instead.
+    if (typeof Html5Qrcode === 'undefined') {
+      document.body.insertAdjacentHTML(
+        'afterbegin',
+        '<div style="background:#500;color:#fff;padding:12px;font-family:monospace;font-size:13px">' +
+        'No se pudo cargar la librería de escaneo (html5-qrcode) desde unpkg.com. ' +
+        'Revisa tu conexión a internet, o si algo en tu red está bloqueando unpkg.com. ' +
+        'Nada de lo que use la cámara va a funcionar hasta que esto cargue.</div>'
+      );
+    }
+  </script>
 
   <script src="js/scanner.js"></script>
   <script src="js/pairing.js"></script>
