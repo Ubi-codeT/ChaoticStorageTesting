@@ -45,9 +45,18 @@ const DebugLog = (function () {
 
 // Catch anything uncaught, anywhere -- a safety net in case something
 // throws outside the specific spots already wrapped with DebugLog calls.
+// Capture phase (the `true` below) matters here: resource-load failures
+// (a <script src> 404ing, for example) fire an `error` event that does
+// NOT bubble, so a normal bubble-phase listener never sees them -- which
+// is exactly the gap that let js/tabs/*.js fail silently before this was
+// added. Capture-phase listeners on window DO see those.
 window.addEventListener('error', function (e) {
+  if (e.target && e.target !== window && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK' || e.target.tagName === 'IMG')) {
+    DebugLog.log('RESOURCE LOAD FAILED', { tag: e.target.tagName, src: e.target.src || e.target.href });
+    return;
+  }
   DebugLog.log('window.onerror', { message: e.message, filename: e.filename, lineno: e.lineno });
-});
+}, true);
 window.addEventListener('unhandledrejection', function (e) {
   DebugLog.log('unhandledrejection', { reason: e.reason && (e.reason.message || String(e.reason)) });
 });
