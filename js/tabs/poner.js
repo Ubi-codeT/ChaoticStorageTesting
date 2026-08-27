@@ -6,22 +6,32 @@
  * scanning a product" -- those two are in tension (if the very first scan
  * instantly jumps to the shelf panel, there's no window left to repeat-
  * scan the same code for qty). Resolved here as: the Item panel keeps
- * accepting scans (repeat-scan of the SAME code bumps its qty; a
- * DIFFERENT code either replaces the current item, or -- with "Seleccionar
+ * accepting scans (repeat-scan of the SAME model-color bumps its qty; a
+ * DIFFERENT one either replaces the current item, or -- with "Seleccionar
  * más" on -- gets added alongside it) until the associate explicitly
  * continues to the Shelf panel, either via the button or by switching
  * "Seleccionar más" back off after batching. No scan silently
  * auto-advances on its own. If this doesn't feel right once tested for
  * real, that's exactly the kind of thing to flag back.
+ *
+ * Every scan is resolved via api.js's resolveBarcode() first -- "the same
+ * item" for repeat-scan/qty-bump purposes means the same (product,
+ * color), matched via the resolved item's `key`, NOT the literal barcode
+ * string. This means scanning two DIFFERENT sizes of the same model-color
+ * back to back correctly bumps the same qty counter (this is the real
+ * modelo-color-level behavior the plan describes) -- and each individual
+ * scan's variantId still gets collected into scannedVariantIds, so the
+ * optional precise layer (stock_placement_scans) ends up with the real
+ * per-size breakdown even though the fast qty counter never needed it.
  */
 
 const PonerTab = (function () {
   const itemScanner = new Scanner('ponerItemScanner');
   const shelfScanner = new Scanner('ponerShelfScanner');
 
-  let currentItem = null; // { itemCode, qty } -- the one being actively built up by repeat-scan
-  let batch = []; // [{ itemCode, qty }] -- only used when "Seleccionar más" is on
-  let currentLocationCode = null;
+  let currentItem = null; // { item: resolvedItem, qty, scannedVariantIds: string[] }
+  let batch = []; // [{ item, qty, scannedVariantIds }] -- only used when "Seleccionar más" is on
+  let busy = false; // guards against overlapping scans while resolveBarcode() is in flight
 
   const itemPanel = document.getElementById('ponerItemPanel');
   const shelfPanel = document.getElementById('ponerShelfPanel');
@@ -42,7 +52,7 @@ const PonerTab = (function () {
   }
 
   function renderItemSummary() {
-    itemSummary.textContent = currentItem ? (currentItem.itemCode + ' -- cantidad: ' + currentItem.qty) : 'Escanea un artículo…';
+    itemSummary.textContent = currentItem ? (currentItem.item.displayLabel + ' -- cantidad: ' + currentItem.qty) : 'Escanea un artículo…';
     continueBtn.disabled = !currentItem && batch.length === 0;
   }
 
@@ -51,26 +61,40 @@ const PonerTab = (function () {
     batch.forEach(function (line) {
       const div = document.createElement('div');
       div.className = 'entry';
-      div.textContent = line.itemCode + ' × ' + line.qty;
+      div.textContent = line.item.displayLabel + ' × ' + line.qty;
       batchListEl.appendChild(div);
     });
   }
 
-  function onItemScan(code) {
-    if (currentItem && currentItem.itemCode === code) {
-      currentItem.qty += 1; // repeat-scan of the same code -- bump qty
-    } else {
-      // A different code showed up. If we're batching and had a
-      // completed current item, park it in the batch before starting the
-      // new one; otherwise (non-batch mode) the new scan just replaces
-      // whatever was current.
-      if (currentItem && seleccionarMas.checked) {
-        batch.push(currentItem);
+  async function onItemScan(code) {
+    if (busy) return; // a resolveBarcode() call for a previous scan is still in flight -- ignore until it settles
+    busy = true;
+    try {
+      const item = await resolveBarcode(code);
+      if (currentItem && currentItem.item.key === item.key) {
+        currentItem.qty += 1; // repeat-scan of the same model-color -- bump qty
+        if (item.variantId) currentItem.scannedVariantIds.push(item.variantId);
+      } else {
+        // A different model-color showed up. If we're batching and had a
+        // completed current item, park it in the batch before starting
+        // the new one; otherwise (non-batch mode) the new scan just
+        // replaces whatever was current.
+        if (currentItem && seleccionarMas.checked) {
+          batch.push(currentItem);
+        }
+        currentItem = {
+          item: item,
+          qty: Number(qtyInput.value) > 0 ? Number(qtyInput.value) : 1,
+          scannedVariantIds: item.variantId ? [item.variantId] : [],
+        };
       }
-      currentItem = { itemCode: code, qty: Number(qtyInput.value) > 0 ? Number(qtyInput.value) : 1 };
+      renderItemSummary();
+      renderBatch();
+    } catch (e) {
+      itemSummary.textContent = e.message || String(e);
+    } finally {
+      busy = false;
     }
-    renderItemSummary();
-    renderBatch();
   }
 
   function finalizeBatchAndGoToShelf() {
@@ -99,7 +123,6 @@ const PonerTab = (function () {
   continueBtn.addEventListener('click', finalizeBatchAndGoToShelf);
 
   async function onShelfScan(code) {
-    currentLocationCode = code;
     await commitBatchToShelf(code);
   }
 
@@ -107,7 +130,7 @@ const PonerTab = (function () {
     shelfContentsEl.innerHTML = '<p class="hint">Guardando…</p>';
     try {
       for (const line of batch) {
-        await stowItem({ itemCode: line.itemCode, locationCode: locationCode, qty: line.qty });
+        await stowItem({ item: line.item, locationCode: locationCode, qty: line.qty, scannedVariantIds: line.scannedVariantIds });
       }
     } catch (e) {
       shelfContentsEl.innerHTML = '<p class="hint" style="color:#e88">' + escapeHtml_(e.message) + '</p>';
@@ -123,10 +146,10 @@ const PonerTab = (function () {
     const contents = getLocationContents(locationCode);
     let html = '<h3 style="margin:8px 0 4px">Contenido de ' + escapeHtml_(locationCode) + '</h3>';
     if (contents.length === 0) {
-      html += '<p class="hint">Vacío.</p>';
+      html += '<p class="hint">Vacío (o backend real -- este resumen sólo funciona en modo mock por ahora, ver api.js).</p>';
     } else {
       contents.forEach(function (c) {
-        html += '<div class="entry">' + escapeHtml_(c.itemCode) + ' × ' + c.qty + '</div>';
+        html += '<div class="entry">' + escapeHtml_(c.displayLabel) + ' × ' + c.qty + '</div>';
       });
     }
     shelfContentsEl.innerHTML = html;
@@ -153,7 +176,7 @@ const PonerTab = (function () {
       const div = document.createElement('div');
       div.className = 'entry';
       const dirLabel = m.direction === 'in' ? 'Colocado' : 'Tomado';
-      div.innerHTML = dirLabel + ': ' + escapeHtml_(m.itemCode) + ' × ' + m.qty + ' en ' + escapeHtml_(m.locationCode)
+      div.innerHTML = dirLabel + ': ' + escapeHtml_(m.displayLabel) + ' × ' + m.qty + ' en ' + escapeHtml_(m.locationCode)
         + '<div class="meta">' + m.reason + ' -- ' + new Date(m.createdAt).toLocaleTimeString() + '</div>';
       recentEl.appendChild(div);
     });
